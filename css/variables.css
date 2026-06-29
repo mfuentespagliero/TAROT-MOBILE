@@ -1,0 +1,10 @@
+:root {
+  --color-bg: #070916; --color-bg-soft: #0d1024; --color-surface: #12152d; --color-surface-raised: #181a38;
+  --color-primary: #9c83e6; --color-primary-light: #c7b8ff; --color-gold: #d7b56d; --color-gold-light: #f0d99d;
+  --color-ivory: #f5f0e6; --color-text: #dedbe8; --color-muted: #9995aa; --color-border: rgba(215,181,109,.22);
+  --font-display: "Cormorant Garamond", Georgia, serif; --font-body: "Manrope", system-ui, sans-serif;
+  --space-1: .5rem; --space-2: .75rem; --space-3: 1rem; --space-4: 1.5rem; --space-5: 2rem; --space-6: 3rem; --space-7: 5rem; --space-8: 7rem;
+  --radius-sm: .65rem; --radius-md: 1rem; --radius-lg: 1.5rem; --radius-pill: 999px;
+  --shadow-card: 0 18px 60px rgba(0,0,0,.3); --shadow-glow: 0 0 50px rgba(139,111,220,.18);
+  --transition: 220ms cubic-bezier(.2,.8,.2,1); --content: 1180px; --header-height: 76px;
+}

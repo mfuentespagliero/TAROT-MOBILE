@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#090b1a">
+  <meta name="description" content="Explora las 78 cartas del tarot de Arcana.">
+  <title>Explorador de cartas · Arcana</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/learn.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body data-page="learn">
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+  <div data-site-header></div>
+  <main id="contenido" class="page-main">
+    <section class="arcana-hero section-shell" aria-labelledby="arcana-title">
+      <div class="arcana-hero__copy reveal">
+        <p class="eyebrow">Biblioteca Arcana</p>
+        <h1 id="arcana-title">Un mapa de 78 símbolos<br>para el <em>viaje interior</em></h1>
+        <p>Mayores y menores reúnen arquetipos, decisiones, vínculos y escenas cotidianas. Explóralos como espejos para la reflexión, no como destinos escritos.</p>
+        <a class="button button--ghost" href="#explorador">Explorar las cartas <span aria-hidden="true">↓</span></a>
+      </div>
+      <div class="arcana-hero__visual reveal" aria-hidden="true">
+        <div class="arcana-card arcana-card--back"><div class="arcana-card__inner"><span>☾</span><i>✦</i><b>ARCANA</b></div></div>
+      </div>
+    </section>
+
+    <section class="arcana-explorer section-shell" id="explorador" aria-labelledby="explorer-title">
+      <div class="section-heading reveal"><div><p class="eyebrow">Mazo completo</p><h2 id="explorer-title">Elige un símbolo</h2></div><p class="section-heading__copy">Abre una carta para conocer su luz, su sombra y las preguntas que propone.</p></div>
+      <div class="arcana-toolbar reveal">
+        <label class="search-field" for="card-search"><span class="sr-only">Buscar una carta por nombre</span><span aria-hidden="true">⌕</span><input id="card-search" type="search" placeholder="Buscar por nombre…" autocomplete="off" data-card-search></label>
+        <p data-card-count aria-live="polite"></p>
+      </div>
+      <div class="arcana-filter-row reveal">
+        <div class="chip-list" data-card-filters aria-label="Filtrar cartas"></div>
+        <label class="answer-filter"><span class="sr-only">Filtrar por respuesta de sí o no</span><select data-answer-filter><option value="all">Cualquier respuesta</option><option value="yes">Orientación sí</option><option value="no">Orientación no</option><option value="uncertain">Respuesta incierta</option></select></label>
+      </div>
+      <div class="arcana-grid" data-card-grid aria-live="polite"></div>
+    </section>
+  </main>
+  <div data-site-footer></div>
+  <dialog class="modal card-detail" data-card-dialog aria-labelledby="card-detail-title"><div data-card-detail></div></dialog>
+</body>
+</html>
