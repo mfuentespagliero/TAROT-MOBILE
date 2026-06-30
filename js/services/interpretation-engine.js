@@ -1,4 +1,6 @@
 import { getCardById } from "../data/cards.js";
+import { getOracleCard } from "../data/oracle-cards.js";
+import { getReadingStrategy } from "../data/reading-strategies.js";
 
 const toneProfiles = Object.freeze({
   marseille:{name:"tradicional",openers:["En su lenguaje esencial","Desde una lectura directa","El símbolo central señala"],connectors:["dialoga con","refuerza","pone a prueba"],synthesis:"La estructura de la tirada concentra la atención en",closing:"Los símbolos orientan; tu criterio da el siguiente paso."},
@@ -15,8 +17,9 @@ const oppositionPairs = [["comienzo","cierre"],["claridad","confusión"],["unió
 export function generateInterpretation(input) {
   const normalized = normalizeInput(input);
   const analysis = analyzeCards(normalized.cards);
+  const strategy = getReadingStrategy(normalized.spread.id);
   const tone = toneProfiles[normalized.deck.id] ?? toneProfiles["rider-waite-smith"];
-  const positions = normalized.cards.map((item,index) => interpretPosition(item,index,normalized,analysis,tone));
+  const positions = normalized.cards.map((item,index) => interpretPosition(item,index,normalized,analysis,tone,strategy));
   const connections = buildConnections(normalized.cards,tone);
   const tensions = detectTensions(normalized.cards,analysis);
   const patterns = buildPatterns(analysis,normalized.cards);
@@ -31,8 +34,9 @@ export function generateInterpretation(input) {
   const synthesis = `${tone.synthesis} ${predominantEnergy.toLocaleLowerCase("es")}. ${synthesisFromPatterns(analysis,tensions)}${yesNo ? ` En la pregunta de sí o no, la respuesta orientativa es “${yesNo.answer}”.` : ""}`;
   const tendency = `La tendencia parece orientarse hacia ${lowerFirst(getOrientedMeaning(trendCard.card,trendCard.isReversed,"future"))} Esto no determina un resultado fijo: describe el rumbo que gana fuerza bajo las condiciones actuales${normalized.predictionPeriod ? ` durante ${normalized.predictionPeriod.toLocaleLowerCase("es")}` : ""}.`;
   const advice = `La energía actual invita a ${lowerFirst(adviceCard.card.adviceMeaning)} ${normalized.options.a && normalized.options.b ? `Antes de elegir entre “${normalized.options.a}” y “${normalized.options.b}”, compara cuál opción puede sostener mejor ese criterio.` : ""}`.trim();
-  const warning = buildWarning(normalized,tensions,analysis);
+  const warning = buildWarning(normalized,tensions,analysis,strategy);
   const clarity = calculateClarity(normalized.cards,tensions,analysis);
+  const specialized = buildSpecializedResult(strategy,normalized,{positions,connections,tensions,patterns,yesNo,predominantEnergy,synthesis,tendency,advice,clarity});
 
   return Object.freeze({
     introduction,
@@ -48,7 +52,9 @@ export function generateInterpretation(input) {
     reflectionQuestion:reflectionCard?.reflectionQuestion ?? "¿Qué parte de esta lectura puedes convertir en una acción consciente?",
     finalPhrase:`${tone.closing} ${adviceCard.card.affirmation}`,
     clarity,
-    yesNo
+    yesNo,
+    strategy:Object.freeze({id:strategy?.id ?? normalized.spread.id,family:strategy?.family ?? "general",layout:strategy?.layout ?? "standard",intent:strategy?.intent ?? "Interpretar la consulta"}),
+    specialized
   });
 }
 
@@ -93,7 +99,7 @@ function analyzeCards(items) {
   return {total:items.length,suitCounts,elementCounts,numberCounts,dominantSuit,dominantElement,majorCount,courtCards,highIntensityCards,repeatedNumbers,reversedCount,elementBalance:Object.keys(elementCounts).length};
 }
 
-function interpretPosition(item,index,input,analysis,tone) {
+function interpretPosition(item,index,input,analysis,tone,strategy) {
   const previous = input.cards[index - 1];
   const next = input.cards[index + 1];
   const position = item.position.name;
@@ -106,7 +112,8 @@ function interpretPosition(item,index,input,analysis,tone) {
   if (next && index === 0) relation += ` La carta siguiente, ${next.card.name}, ${next.isReversed === item.isReversed ? "mantiene" : "matiza"} esa dirección.`;
   const optionNote = normalizeText(position).includes("opcion a") && input.options.a ? ` Esta posición representa “${input.options.a}”.` : normalizeText(position).includes("opcion b") && input.options.b ? ` Esta posición representa “${input.options.b}”.` : "";
   const relational = input.otherPersonName ? " La lectura describe la dinámica que percibes y compartes, no una certeza sobre la vida interior de la otra persona." : "";
-  return Object.freeze({position,index,cardId:item.card.id,cardName:item.card.name,orientation:item.isReversed ? "reversed" : "upright",orientationLabel:item.isReversed ? "Invertida" : "Derecha",keywords:item.isReversed ? item.card.reversedKeywords : item.card.uprightKeywords,text:`${opener}, ${position.toLocaleLowerCase("es")} muestra que ${lowerFirst(base)} ${contextual}${relation}${optionNote}${relational}`.replace(/\s+/g," ").trim()});
+  const strategyGuide = strategy?.positionGuidance?.[index] ? ` Dentro de esta tirada, la posición se lee como ${strategy.positionGuidance[index]}.` : strategy?.dynamicPositions ? ` El nombre “${position}” define la función específica elegida para esta carta.` : "";
+  return Object.freeze({position,index,cardId:item.card.id,cardName:item.card.name,orientation:item.isReversed ? "reversed" : "upright",orientationLabel:item.isReversed ? "Invertida" : "Derecha",keywords:item.isReversed ? item.card.reversedKeywords : item.card.uprightKeywords,text:`${opener}, ${position.toLocaleLowerCase("es")} muestra que ${lowerFirst(base)} ${contextual}${relation}${optionNote}${relational}${strategyGuide}`.replace(/\s+/g," ").trim()});
 }
 
 function buildConnections(items,tone) {
@@ -148,6 +155,44 @@ function calculateClarity(items,tensions,analysis) {
   return {level:score >= 72 ? "Alta" : score >= 48 ? "Media" : "Baja",score,explanation:score >= 72 ? "Las cartas mantienen una dirección relativamente coherente." : score >= 48 ? "El mensaje es legible, aunque contiene matices que necesitan tiempo o información adicional." : "La combinación presenta señales contrapuestas; conviene tratarla como una exploración abierta."};
 }
 
+function buildSpecializedResult(strategy,input,base) {
+  const layout = strategy?.layout ?? "standard";
+  const result = {layout,title:strategy?.intent ?? input.spread.name,phase:null,variant:null,response:null,explanation:null,changeFactor:null,sections:[],timeline:null,paths:null,groups:null,oracleCard:null,practicalQuestions:[]};
+  const first = base.positions[0];
+  const last = base.positions.at(-1);
+  if (layout === "single") result.sections = [
+    {title:"Respuesta central",content:first.text},{title:"Energía",content:base.predominantEnergy},{title:"Consejo",content:base.advice},
+    {title:"Aspecto a considerar",content:base.tensions[0] ?? first.keywords.join(", ")},{title:"Frase final",content:input.cards[0].card.shortMessage}
+  ];
+  if (layout === "duo") { result.variant=input.twoCardLayout || `${base.positions[0]?.position} y ${base.positions[1]?.position}`; result.paths=base.positions.map(position => ({name:position.position,text:position.text})); }
+  if (layout === "yes-no") {
+    result.response=base.yesNo?.answer;
+    result.explanation=base.yesNo?.explanation;
+    result.changeFactor=base.tensions[0] ?? last?.text;
+    result.sections=[{title:"Respuesta graduada",content:result.response},{title:"Explicación",content:result.explanation},{title:"Factor que puede cambiar el resultado",content:result.changeFactor}];
+  }
+  if (["timeline","forecast"].includes(layout)) { result.timeline=base.positions.map(position => ({name:position.position,text:position.text})); result.phase=input.predictionPeriod || (layout === "timeline" ? "Secuencia abierta" : "Periodo no definido"); result.sections=[{title:"Lectura temporal responsable",content:"Estas posiciones describen tendencias y movimientos posibles; no anuncian hechos inevitables."}]; }
+  if (["relationship","essence"].includes(layout)) result.sections=[{title:"Marco del vínculo",content:"La lectura explora símbolos, percepciones y dinámicas relacionales. No accede a pensamientos privados ni confirma secretos."},{title:"Clave de cuidado",content:base.advice}];
+  if (["mirror","counsel","hidden-truth"].includes(layout)) result.sections=[{title:"Lectura introspectiva",content:`${strategy.intent}. ${base.synthesis}`},{title:"Movimiento interior",content:base.advice}];
+  if (["decision","crossroads"].includes(layout)) {
+    const a = base.positions.find(position => normalizeText(position.position).includes("opcion a") || normalizeText(position.position).includes("camino a")) ?? base.positions[1];
+    const b = base.positions.find(position => normalizeText(position.position).includes("opcion b") || normalizeText(position.position).includes("camino b")) ?? base.positions[2];
+    result.paths=[{name:input.options.a || "Opción A",benefit:a?.text,risk:a?.keywords?.join(", "),condition:"Revisa si este camino puede sostenerse con tus recursos y valores actuales."},{name:input.options.b || "Opción B",benefit:b?.text,risk:b?.keywords?.join(", "),condition:"Considera qué necesitaría cambiar para que esta vía fuera viable."}];
+    result.practicalQuestions=["¿Qué opción preserva mejor tus prioridades no negociables?","¿Qué riesgo puedes gestionar y cuál excede tus límites?","¿Qué información concreta falta antes de decidir?"];
+  }
+  if (layout === "balance") result.paths=base.positions.slice(0,2).map(position => ({name:position.position,benefit:position.text,risk:position.keywords.join(", "),condition:"Pondera este factor junto con la síntesis, no de forma aislada."}));
+  if (layout === "work") result.sections=[{title:"Aplicación profesional",content:base.advice},{title:"Límite responsable",content:"Esta lectura no sustituye orientación laboral, contractual o profesional."}];
+  if (layout === "money") result.sections=[{title:"Aplicación material",content:base.advice},{title:"Límite responsable",content:"Esta lectura no constituye asesoría financiera ni promete ganancias."}];
+  if (["celtic-cross","emotional-celtic"].includes(layout)) result.groups=(strategy.groups ?? []).map(group => ({name:group.name,items:group.indices.map(index => base.positions[index]).filter(Boolean),summary:group.indices.map(index => base.positions[index]?.keywords?.[0]).filter(Boolean).join(" · ")}));
+  if (layout === "lunar") { result.phase=input.moonPhase || "General"; result.sections=[{title:`Clave de ${result.phase}`,content:lunarPhaseMessage(result.phase)},{title:"Ritmo sugerido",content:base.advice}]; }
+  if (layout === "oracle-pair") { const oracle=getOracleCard(input.seed); result.oracleCard=oracle; result.sections=[{title:"Mensaje combinado",content:`${first.cardName} aporta ${first.keywords.join(", ")}. ${oracle.name} responde con ${oracle.centralWord.toLocaleLowerCase("es")}: ${oracle.message}`},{title:"Guía",content:oracle.advice},{title:"Sombra",content:oracle.shadow},{title:"Afirmación",content:oracle.affirmation}]; }
+  if (layout === "free" || layout === "custom") result.sections=base.positions.map(position => ({title:position.position,content:position.text}));
+  if (!result.sections.length && !result.paths && !result.groups && !result.timeline) result.sections=[{title:input.spread.name,content:`${strategy?.intent ?? "La estrategia"}. ${base.synthesis}`}];
+  return Object.freeze(result);
+}
+
+function lunarPhaseMessage(phase) { return ({"Luna nueva":"Sembrar una intención sin exigir resultados inmediatos.",Creciente:"Dar forma, práctica y alimento a lo que está creciendo.","Luna llena":"Mirar con claridad lo que alcanzó visibilidad y plenitud.",Menguante:"Liberar, simplificar y devolver energía al descanso.",General:"Recorrer el ciclo completo: intención, crecimiento, revelación y liberación."})[phase] ?? "Escuchar el ritmo emocional antes de intervenir."; }
+
 function getContextMeaning(card,input) {
   const category = input.spread.category;
   const meaning = category === "love" ? card.loveMeaning : category === "work" ? card.workMeaning : category === "money" ? card.moneyMeaning : ["self-knowledge","deep"].includes(category) ? card.emotionalMeaning : category === "decisions" ? card.adviceMeaning : card.opportunityMeaning;
@@ -168,7 +213,7 @@ function getOrientedMeaning(card,isReversed,role = "general") {
 function positionRole(name) { const value = normalizeText(name); if (value.includes("pasado") || value.includes("base")) return "past"; if (value.includes("presente") || value.includes("actual")) return "present"; if (value.includes("futuro") || value.includes("resultado") || value.includes("tendencia")) return "future"; if (value.includes("consejo") || value.includes("orientacion") || value.includes("clave") || value.includes("accion")) return "advice"; if (value.includes("bloque") || value.includes("desafio") || value.includes("riesgo") || value.includes("contra")) return "obstacle"; if (value.includes("oportunidad") || value.includes("favor") || value.includes("posibilidad")) return "opportunity"; return "general"; }
 function findRoleCard(items,terms) { return items.find(item => terms.some(term => normalizeText(item.position.name).includes(term))); }
 function orientationRelation(previous,current) { if (previous.isReversed === current.isReversed) return "ambas sostienen una orientación semejante"; return "una carta impulsa mientras la otra pide revisar o interiorizar"; }
-function buildWarning(input,tensions,analysis) { if (input.otherPersonName) return `Esta lectura no confirma lo que ${input.otherPersonName} piensa, siente o hace. Usa los símbolos para revisar la dinámica, buscar comunicación directa y cuidar los límites.`; if (input.spread.category === "future") return "La lectura describe tendencias condicionales, no promete hechos futuros. Cambios de contexto y decisiones posteriores pueden modificar el escenario."; if (tensions.length) return "Las contradicciones no son errores: pueden señalar ambivalencia, información incompleta o áreas que avanzan a ritmos distintos. Evita tomar una sola carta como verdad definitiva."; if (analysis.highIntensityCards.length) return "La intensidad simbólica no equivale a una desgracia ni a un diagnóstico. Tómala como una invitación a observar cambios y recursos con serenidad."; return "El tarot se ofrece como entretenimiento, reflexión y autoconocimiento. No sustituye asesoramiento profesional ni determina tus decisiones."; }
+function buildWarning(input,tensions,analysis,strategy) { if (strategy?.financialNotice) return "Esta lectura no constituye asesoría financiera, no promete ingresos y no sustituye la revisión de datos o la orientación de un profesional cualificado."; if (strategy?.professionalNotice) return "Esta lectura no sustituye orientación profesional, contractual o laboral. Contrasta sus símbolos con información verificable de tu contexto."; if (input.otherPersonName || strategy?.responsibleRelationship) return `Esta lectura no confirma lo que ${input.otherPersonName || "otra persona"} piensa, siente o hace. Usa los símbolos para revisar la dinámica, buscar comunicación directa y cuidar los límites.`; if (strategy?.trendOnly || input.spread.category === "future") return "La lectura describe tendencias condicionales, no promete hechos futuros. Cambios de contexto y decisiones posteriores pueden modificar el escenario."; if (tensions.length) return "Las contradicciones no son errores: pueden señalar ambivalencia, información incompleta o áreas que avanzan a ritmos distintos. Evita tomar una sola carta como verdad definitiva."; if (analysis.highIntensityCards.length) return "La intensidad simbólica no equivale a una desgracia ni a un diagnóstico. Tómala como una invitación a observar cambios y recursos con serenidad."; return "El tarot se ofrece como entretenimiento, reflexión y autoconocimiento. No sustituye asesoramiento profesional ni determina tus decisiones."; }
 function synthesisFromPatterns(analysis,tensions) { const first = analysis.majorCount > analysis.total / 2 ? "El número de arcanos mayores da peso al aprendizaje general." : "Las cartas cotidianas muestran que pequeños actos pueden modificar el proceso."; return `${first} ${tensions.length ? "Las tensiones detectadas piden integrar perspectivas antes de cerrar una conclusión." : "La combinación mantiene suficiente coherencia para traducir el mensaje en un paso concreto."}`; }
 function deckIntroduction(tone,deck) { return `La baraja ${deck.name}, con enfoque ${tone.name}, orienta el lenguaje hacia ${deck.focus.toLocaleLowerCase("es")}.`; }
 function suitDomain(suit) { return ({Bastos:"acción, iniciativa y creatividad",Copas:"emociones, vínculos e intuición",Espadas:"verdad, decisiones y conflicto mental",Oros:"recursos, cuerpo, trabajo y estabilidad"})[suit] ?? "experiencias cotidianas"; }

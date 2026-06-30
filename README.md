@@ -16,8 +16,8 @@ Luego abre `http://localhost:8000`. También puede publicarse directamente con G
 
 - `index.html`: portada y catálogo inicial.
 - `lectura.html`: preparación provisional de cualquier lectura.
-- `aprender.html`: explorador interactivo de arcanos mayores.
-- `historial.html`: estado provisional del historial.
+- `aprender.html`: curso, prácticas, modo estudio y explorador de las 78 cartas.
+- `historial.html`: historial local con búsqueda, filtros y detalle.
 - `css/`: variables, reset, componentes y estilos por página.
 - `js/`: configuración, datos, componentes y lógica por página.
 - `js/data/spreads.js`: fuente única de las 24 tiradas, sus posiciones y reglas.
@@ -30,6 +30,13 @@ Luego abre `http://localhost:8000`. También puede publicarse directamente con G
 - `js/services/reading-session.js`: sesión central persistida en `sessionStorage`.
 - `js/services/tarot-engine.js`: barajado Fisher–Yates, orientaciones y selección sin repeticiones.
 - `js/services/interpretation-engine.js`: interpretación local, análisis de patrones, tonos por baraja y respuesta sí/no.
+- `js/data/reading-strategies.js`: estrategias y layouts especializados para las 24 tiradas.
+- `js/data/oracle-cards.js`: 24 cartas de oráculo originales para la lectura combinada.
+- `js/services/storage-service.js`: lecturas guardadas, favoritos, preferencias y Carta del Día versionados.
+- `js/services/share-service.js`: compartir, copiar y exportar con controles de privacidad.
+- `js/pages/history.js`: presentación y acciones del historial local.
+- `js/data/lessons.js`: currículo responsable de 23 lecciones.
+- `js/pages/learn.js`: navegación educativa, ejercicios y progreso local.
 
 El nombre provisional vive en `js/config.js`. El catálogo permite buscar, filtrar y revisar el detalle de cada tirada antes de acceder a su preparación provisional.
 

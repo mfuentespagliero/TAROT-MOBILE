@@ -1,4 +1,5 @@
 import { fieldDefinitions, selectionMethods } from "../data/fields.js";
+import { resolveReadingSettings } from "../data/reading-strategies.js";
 
 export function renderDynamicForm(spread, session) {
   const fieldIds = [...new Set([...spread.requiredFields, ...spread.optionalFields])];
@@ -65,13 +66,15 @@ function readFormValues(form, spread, session) {
   const value = id => String(data.get(id) ?? "").trim();
   const amount = Number(value("cardAmount") || session.cardAmount || spread.cardCount);
   const customPositions = data.getAll("customPositionNames").map(item => String(item).trim());
-  return {
+  const draft = {
     ...session,
     question:value("question"), querentName:value("querentName"), otherPersonName:value("otherPersonName"), relationship:value("relationship"),
     context:value("context"), topic:value("topic"), options:{a:value("optionA"),b:value("optionB")}, predictionPeriod:value("predictionPeriod"), moonPhase:value("moonPhase"),
     cardAmount:amount, positions:customPositions.length ? customPositions : spread.positions.slice(0,amount).map(position => position.name),
-    useReversed:spread.allowsReversed && data.get("useReversed") === "on", selectionMethod:value("selectionMethod")
+    useReversed:spread.allowsReversed && data.get("useReversed") === "on", selectionMethod:value("selectionMethod"),
+    twoCardLayout:value("twoCardLayout"),yesNoCardCount:value("yesNoCardCount")
   };
+  return {...draft,...resolveReadingSettings(spread,draft)};
 }
 
 function validateForm(form, spread, values) {

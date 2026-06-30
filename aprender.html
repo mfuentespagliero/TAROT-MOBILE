@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#090b1a">
-  <meta name="description" content="Explora las 78 cartas del tarot de Arcana.">
-  <title>Explorador de cartas · Arcana</title>
+  <meta name="description" content="Aprende tarot con lecciones, ejercicios y el explorador de las 78 cartas de Arcana.">
+  <title>Aprender tarot · Arcana</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -19,21 +19,32 @@
   <main id="contenido" class="page-main">
     <section class="arcana-hero section-shell" aria-labelledby="arcana-title">
       <div class="arcana-hero__copy reveal">
-        <p class="eyebrow">Biblioteca Arcana</p>
-        <h1 id="arcana-title">Un mapa de 78 símbolos<br>para el <em>viaje interior</em></h1>
-        <p>Mayores y menores reúnen arquetipos, decisiones, vínculos y escenas cotidianas. Explóralos como espejos para la reflexión, no como destinos escritos.</p>
-        <a class="button button--ghost" href="#explorador">Explorar las cartas <span aria-hidden="true">↓</span></a>
+        <p class="eyebrow">Escuela Arcana</p>
+        <h1 id="arcana-title">Aprende a leer símbolos<br>con <em>criterio y cuidado</em></h1>
+        <p>Recorre fundamentos, tiradas, ética y práctica. Después usa el mismo mazo de 78 cartas para estudiar a tu ritmo.</p>
+        <div class="learn-hero-actions"><a class="button button--primary" href="#curso">Comenzar el curso</a><a class="button button--ghost" href="#explorador">Explorar las cartas</a></div>
       </div>
       <div class="arcana-hero__visual reveal" aria-hidden="true">
         <div class="arcana-card arcana-card--back"><div class="arcana-card__inner"><span>☾</span><i>✦</i><b>ARCANA</b></div></div>
       </div>
     </section>
 
+    <section class="learning-section section-shell" id="curso" aria-labelledby="course-title" data-learning-curriculum>
+      <div class="section-heading reveal"><div><p class="eyebrow">Ruta educativa</p><h2 id="course-title">Fundamentos para leer tarot</h2></div><p class="section-heading__copy">Puedes seguir el orden sugerido o abrir directamente el tema que necesitas.</p></div>
+      <div class="learning-progress" data-learning-progress aria-live="polite"></div>
+      <div class="curriculum-layout"><nav class="lesson-index" data-lesson-index aria-label="Índice de contenidos"></nav><div class="lesson-panel" data-lesson-view></div></div>
+    </section>
+
+    <section class="study-section section-shell" aria-labelledby="study-title">
+      <div class="section-heading reveal"><div><p class="eyebrow">Modo estudio</p><h2 id="study-title">Construye tu propia biblioteca mental</h2></div><p class="section-heading__copy">Marca lo que ya reconoces, guarda las cartas difíciles y vuelve a las pendientes.</p></div>
+      <div class="study-dashboard" data-study-dashboard></div>
+    </section>
+
     <section class="arcana-explorer section-shell" id="explorador" aria-labelledby="explorer-title">
       <div class="section-heading reveal"><div><p class="eyebrow">Mazo completo</p><h2 id="explorer-title">Elige un símbolo</h2></div><p class="section-heading__copy">Abre una carta para conocer su luz, su sombra y las preguntas que propone.</p></div>
       <div class="arcana-toolbar reveal">
         <label class="search-field" for="card-search"><span class="sr-only">Buscar una carta por nombre</span><span aria-hidden="true">⌕</span><input id="card-search" type="search" placeholder="Buscar por nombre…" autocomplete="off" data-card-search></label>
-        <p data-card-count aria-live="polite"></p>
+        <div class="explorer-controls"><label><span class="sr-only">Ordenar cartas</span><select data-card-order><option value="deck">Orden del mazo</option><option value="name-asc">Nombre A–Z</option><option value="name-desc">Nombre Z–A</option><option value="suit">Palo y número</option></select></label><div class="view-switch" data-card-views aria-label="Cambiar vista"><button type="button" data-card-view="grid" aria-pressed="true" aria-label="Vista de cuadrícula">▦</button><button type="button" data-card-view="list" aria-pressed="false" aria-label="Vista de lista">☷</button></div><p data-card-count aria-live="polite"></p></div>
       </div>
       <div class="arcana-filter-row reveal">
         <div class="chip-list" data-card-filters aria-label="Filtrar cartas"></div>
@@ -41,8 +52,16 @@
       </div>
       <div class="arcana-grid" data-card-grid aria-live="polite"></div>
     </section>
+
+    <section class="practice-section section-shell" id="practica" aria-labelledby="practice-title">
+      <div class="section-heading reveal"><div><p class="eyebrow">Laboratorio local</p><h2 id="practice-title">Practica sin respuestas perfectas</h2></div><p class="section-heading__copy">Los ejercicios se generan desde las 78 cartas existentes y no envían información a ningún servidor.</p></div>
+      <div data-practice-area></div>
+    </section>
+
+    <aside class="learning-disclaimer section-shell"><span aria-hidden="true">◇</span><p><strong>Una práctica responsable.</strong> Existen diversas tradiciones y ninguna interpretación es universal. El contexto modifica el significado; respeta autonomía y privacidad, y no sustituyas atención médica, psicológica, legal o financiera por una lectura.</p></aside>
   </main>
   <div data-site-footer></div>
   <dialog class="modal card-detail" data-card-dialog aria-labelledby="card-detail-title"><div data-card-detail></div></dialog>
+  <div class="toast-region" aria-live="polite" aria-atomic="true" data-toast-region></div>
 </body>
 </html>

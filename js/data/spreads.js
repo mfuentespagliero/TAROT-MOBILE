@@ -57,7 +57,7 @@ export const spreads = Object.freeze([
     id: "dos-cartas", slug: "dos-cartas", name: "Dos cartas", shortName: "Dos cartas",
     description: "Situación y consejo en una conversación breve.", extendedDescription: "Dos perspectivas complementarias: una reconoce dónde estás y la otra sugiere cómo relacionarte con ello.",
     category: "quick", cardCount: 2, difficulty: "beginner", durationMinutes: 5, consultationFormat: "focused-question",
-    requiredFields: ["question", "selectionMethod"], optionalFields: ["context", "useReversed"],
+    requiredFields: ["twoCardLayout", "question", "selectionMethod"], optionalFields: ["context", "useReversed"],
     positions: [position("situation", "Situación", "La energía presente o el núcleo del asunto."), position("advice", "Consejo", "Una actitud, recurso o dirección posible.")],
     instructions: ["Formula una pregunta concreta.", "Lee ambas cartas como partes de una misma frase."], icon: "☽", visualStyle: visual("#aebaff", "linear-gradient(145deg,#2b315f,#10142c)", "twin-moons"),
     recommendations: ["Útil cuando necesitas claridad sin una tirada extensa."], introText: "Primero observa; después escucha lo que la situación te pide.", responsibleNotice: null
@@ -66,7 +66,7 @@ export const spreads = Object.freeze([
     id: "si-o-no", slug: "si-o-no", name: "Sí o no", shortName: "Sí o no",
     description: "Una orientación directa con espacio para los matices.", extendedDescription: "La carta señala una tendencia favorable, desafiante o incierta y ofrece el matiz que hay detrás de la respuesta.",
     category: "decisions", cardCount: 1, difficulty: "beginner", durationMinutes: 3, consultationFormat: "focused-question",
-    requiredFields: ["question", "selectionMethod"], optionalFields: ["context", "useReversed"],
+    requiredFields: ["yesNoCardCount", "question", "selectionMethod"], optionalFields: ["context", "useReversed"],
     positions: [position("orientation", "Orientación central", "Tendencia y matiz principal de la consulta.")],
     instructions: ["Formula una pregunta que pueda orientarse hacia sí o no.", "Considera el mensaje como tendencia, no como garantía."],
     allowsReversed: false, icon: "◐", visualStyle: visual("#c8b4ff", "linear-gradient(145deg,#352c61,#12162f)", "half-moon"),
@@ -236,10 +236,10 @@ export const spreads = Object.freeze([
   }),
   defineSpread({
     id: "tarot-oraculo", slug: "tarot-del-oraculo", name: "Tarot del oráculo", shortName: "Oráculo",
-    description: "Un mensaje simbólico libre para intención y contemplación.", extendedDescription: "Combina estructura de tarot y lenguaje oracular para ofrecer un tema, un desafío, un apoyo, una acción y una frase de integración.",
-    category: "future", cardCount: 5, difficulty: "beginner", durationMinutes: 10, consultationFormat: "open-reflection",
+    description: "Una carta de tarot y una guía oracular en conversación.", extendedDescription: "Combina una carta del tarot con una carta de nuestro oráculo original para ofrecer un mensaje breve, una sombra y una afirmación.",
+    category: "future", cardCount: 1, difficulty: "beginner", durationMinutes: 7, consultationFormat: "open-reflection",
     requiredFields: ["selectionMethod"], optionalFields: ["question", "topic", "context"],
-    positions: [position("message", "Mensaje", "El tema que pide atención."), position("challenge", "Desafío", "La tensión que acompaña el mensaje."), position("support", "Apoyo", "Una energía o recurso disponible."), position("action", "Ritual o acción", "Una manera sencilla de encarnar el mensaje."), position("integration", "Palabra de integración", "La cualidad que resume la lectura.")],
+    positions: [position("tarot-message", "Carta de tarot", "El arquetipo que abre la lectura.")],
     instructions: ["Acércate con una intención amplia.", "Permite que las imágenes resuenen antes de buscar conclusiones."],
     selectionMethods: ["manual", "automatic"], allowsReversed: false, icon: "✵", visualStyle: visual("#d2c0ef", "linear-gradient(145deg,#49366b,#15142e)", "oracle-star"),
     recommendations: ["Ideal para acompañar una pausa, escritura o meditación."], introText: "Un símbolo no ordena: invita a escuchar.", responsibleNotice: null

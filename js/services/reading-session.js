@@ -19,6 +19,8 @@ export function createReadingSession(spread) {
     options: { a: "", b: "" },
     predictionPeriod: "",
     moonPhase: "",
+    twoCardLayout: spread.id === "dos-cartas" ? "Situación y consejo" : "",
+    yesNoCardCount: spread.id === "si-o-no" ? "1 carta" : "",
     cardAmount: spread.cardCount,
     positions: spread.positions.map(position => position.name),
     useReversed: spread.allowsReversed,
