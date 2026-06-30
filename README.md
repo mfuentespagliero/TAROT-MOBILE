@@ -29,7 +29,8 @@ Luego abre `http://localhost:8000`. También puede publicarse directamente con G
 - `js/components/dynamic-form.js`: generador y validación de formularios según cada tirada.
 - `js/services/reading-session.js`: sesión central persistida en `sessionStorage`.
 - `js/services/tarot-engine.js`: barajado Fisher–Yates, orientaciones y selección sin repeticiones.
+- `js/services/interpretation-engine.js`: interpretación local, análisis de patrones, tonos por baraja y respuesta sí/no.
 
 El nombre provisional vive en `js/config.js`. El catálogo permite buscar, filtrar y revisar el detalle de cada tirada antes de acceder a su preparación provisional.
 
-La experiencia incluye preparación, barajado, selección manual o automática y revelación secuencial. Todavía no incluye imágenes definitivas ni interpretación narrativa extensa.
+La experiencia incluye preparación, barajado, selección, revelación e interpretación local responsable. Todavía no incluye imágenes definitivas ni servicios externos de IA.

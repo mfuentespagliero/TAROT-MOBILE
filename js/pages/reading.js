@@ -6,6 +6,7 @@ import { getCardById } from "../data/cards.js";
 import { renderDynamicForm, bindDynamicForm } from "../components/dynamic-form.js";
 import { loadReadingSession, saveReadingSession } from "../services/reading-session.js";
 import { associateCardsWithPositions, getCleanDeck, registerManualSelection, resetSelection, selectCardsAutomatically, shuffleDeck, undoManualSelection } from "../services/tarot-engine.js";
+import { generateInterpretation } from "../services/interpretation-engine.js";
 import { getReadingId } from "../router.js";
 
 const flowSteps = [
@@ -199,10 +200,33 @@ function revealCardTemplate(selected,revealed,index) {
 }
 
 function resultStage(spread,session) {
-  return `${stageHeader("Resultado provisional","Tu lectura está lista","Las cartas y sus posiciones quedaron registradas. La interpretación narrativa completa llegará en la siguiente etapa.")}
-    <article class="provisional-result"><div class="summary-symbol" aria-hidden="true">${spread.icon}</div><h2>${spread.name}</h2><ol>${session.selectedCards.map(selected => `<li><span>${escapeHtml(selected.position.name)}</span><strong>${escapeHtml(selected.name)}</strong><small>${selected.isReversed ? "Invertida" : "Derecha"}</small></li>`).join("")}</ol></article>
-    <div class="flow-actions"><button class="button button--ghost" type="button" data-back-reveal>← Volver a las cartas</button><a class="button button--primary" href="index.html">Finalizar por ahora</a></div>`;
+  const deck = getDeckById(session.deckId);
+  const interpretation = generateInterpretation({sessionId:session.id,question:session.question,querentName:session.querentName,otherPersonName:session.otherPersonName,relationship:session.relationship,context:session.context,topic:session.topic,spread,deck,positions:session.positions,cards:session.selectedCards,predictionPeriod:session.predictionPeriod,options:session.options});
+  const date = new Intl.DateTimeFormat("es",{dateStyle:"long",timeStyle:"short"}).format(new Date(session.createdAt));
+  return `<section class="reading-result" aria-labelledby="result-title">
+    <header class="result-hero"><p class="eyebrow">Lectura completa</p><h1 id="result-title">${escapeHtml(spread.name)}</h1><p>${escapeHtml(interpretation.introduction)}</p><dl><div><dt>Pregunta</dt><dd>${escapeHtml(session.question || "Consulta abierta")}</dd></div><div><dt>Baraja</dt><dd>${escapeHtml(deck.name)}</dd></div><div><dt>Fecha</dt><dd>${escapeHtml(date)}</dd></div></dl></header>
+    ${interpretation.yesNo ? yesNoResultTemplate(interpretation.yesNo) : ""}
+    <section class="result-cards" aria-labelledby="cards-result-title"><h2 id="cards-result-title">Cartas y posiciones</h2>${interpretation.positionInterpretations.map((position,index) => positionResultTemplate(position,session.selectedCards[index])).join("")}</section>
+    <div class="result-columns">
+      ${resultDetails("Patrones detectados",interpretation.detectedPatterns.length ? interpretation.detectedPatterns.map(pattern => `<article><h3>${escapeHtml(pattern.title)}</h3><p>${escapeHtml(pattern.detail)}</p></article>`).join("") : "<p>No aparece un patrón dominante; la diversidad de cartas invita a integrar varias perspectivas.</p>",true)}
+      ${resultDetails("Conexiones entre cartas",interpretation.connections.length ? interpretation.connections.map(connection => `<p><strong>${escapeHtml(connection.from)} → ${escapeHtml(connection.to)}</strong><br>${escapeHtml(connection.text)}</p>`).join("") : "<p>Al ser una lectura de una carta, su mensaje se concentra en una sola imagen.</p>",true)}
+      ${resultDetails("Tensiones y contradicciones",interpretation.tensions.length ? `<ul>${interpretation.tensions.map(tension => `<li>${escapeHtml(tension)}</li>`).join("")}</ul>` : "<p>Las cartas mantienen una dirección compatible, sin contradicciones destacadas.</p>")}
+      ${resultDetails("Energía predominante",`<p>${escapeHtml(interpretation.predominantEnergy)}</p><div class="clarity-meter"><span style="--clarity:${interpretation.clarity.score}%"></span></div><small>Claridad ${escapeHtml(interpretation.clarity.level)} · ${escapeHtml(interpretation.clarity.explanation)}</small>`)}
+    </div>
+    <section class="result-synthesis"><p class="eyebrow">Síntesis general</p><h2>El hilo de la lectura</h2><p>${escapeHtml(interpretation.generalSynthesis)}</p><div class="synthesis-grid"><article><h3>Tendencia</h3><p>${escapeHtml(interpretation.tendency)}</p></article><article><h3>Consejo</h3><p>${escapeHtml(interpretation.advice)}</p></article></div></section>
+    <aside class="result-warning"><span aria-hidden="true">◇</span><div><h2>Una guía, no una certeza</h2><p>${escapeHtml(interpretation.reflectiveWarning)}</p></div></aside>
+    <blockquote class="result-reflection"><p>${escapeHtml(interpretation.reflectionQuestion)}</p><footer>${escapeHtml(interpretation.finalPhrase)}</footer></blockquote>
+    <div class="flow-actions"><button class="button button--ghost" type="button" data-back-reveal>← Volver a las cartas</button><a class="button button--primary" href="index.html">Finalizar lectura</a></div>
+  </section>`;
 }
+
+function positionResultTemplate(position,selected) {
+  const card = getCardById(position.cardId);
+  return `<details class="result-position" open><summary><span>${position.index + 1}</span><div><small>${escapeHtml(position.position)}</small><strong>${escapeHtml(position.cardName)}</strong></div><b>${escapeHtml(position.orientationLabel)}</b></summary><div class="result-position__body"><div class="result-card-symbol ${selected.isReversed ? "is-reversed" : ""}" aria-hidden="true">${card.symbol}</div><div><div class="keyword-list">${position.keywords.map(keyword => `<span>${escapeHtml(keyword)}</span>`).join("")}</div><p>${escapeHtml(position.text)}</p></div></div></details>`;
+}
+
+function yesNoResultTemplate(result) { return `<section class="yes-no-result" aria-labelledby="yes-no-title"><p class="eyebrow">Respuesta orientativa</p><h2 id="yes-no-title">${escapeHtml(result.answer)}</h2><p>${escapeHtml(result.explanation)}</p><div><span>${result.positiveCards} favorables</span><span>${result.negativeCards} desafiantes</span><span>${result.neutralCards} neutrales</span><b>Claridad ${escapeHtml(result.clarity)}</b></div></section>`; }
+function resultDetails(title,content,open = false) { return `<details class="result-block" ${open ? "open" : ""}><summary>${title}</summary><div>${content}</div></details>`; }
 
 function reducedMotion() { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
 function playShuffleSound() {
