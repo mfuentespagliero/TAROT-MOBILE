@@ -111,8 +111,14 @@ export function saveDailyCard(dailyCard) {
 }
 
 export function migrateStorage() {
+  try{const raw=localStorage.getItem(STORAGE_KEY);if(raw&&Number(JSON.parse(raw)?.version)===STORAGE_DATA_VERSION&&!localStorage.getItem(LEGACY_HISTORY_KEY))return{ok:true,error:null,migrated:false};}catch{}
   const state = readState();
   const result = writeState(state);
   if (result.ok) { try { localStorage.removeItem(LEGACY_HISTORY_KEY); } catch {} }
-  return result;
+  return {...result,migrated:result.ok};
+}
+
+export function clearAllLocalData(){
+  try{for(let index=localStorage.length-1;index>=0;index--){const key=localStorage.key(index);if(key?.startsWith(`${APP_CONFIG.storagePrefix}:`))localStorage.removeItem(key);}for(let index=sessionStorage.length-1;index>=0;index--){const key=sessionStorage.key(index);if(key?.startsWith(`${APP_CONFIG.storagePrefix}:`))sessionStorage.removeItem(key);}return{ok:true};}
+  catch(error){console.warn("[Arcana] No fue posible borrar todos los datos locales.",error);return{ok:false,error:"storage-unavailable"};}
 }

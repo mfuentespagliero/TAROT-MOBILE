@@ -37,9 +37,16 @@ export function createReadingSession(spread) {
 export function loadReadingSession(spread) {
   try {
     const stored = JSON.parse(sessionStorage.getItem(STORAGE_KEY));
-    if (stored?.spreadId === spread.id) { readingSession = { ...createReadingSession(spread), ...stored, options: { a:"", b:"", ...stored.options } }; return readingSession; }
+    if (stored?.spreadId === spread.id) {
+      const base=createReadingSession(spread),validStatuses=new Set(["deck","form","summary","shuffling","selection","reveal","result"]);
+      readingSession={...base,...stored,options:{a:"",b:"",...stored.options},positions:Array.isArray(stored.positions)?stored.positions:base.positions,selectedCards:Array.isArray(stored.selectedCards)?stored.selectedCards:[]};
+      if(!validStatuses.has(readingSession.status))readingSession={...readingSession,status:"deck",recoveryNotice:"La etapa guardada no era válida. Reiniciamos la preparación de forma segura."};
+      if(["reveal","result"].includes(readingSession.status)&&readingSession.selectedCards.length!==readingSession.cardAmount)readingSession={...readingSession,status:readingSession.deckId?"summary":"deck",selectedCards:[],revealedCount:0,recoveryNotice:"Faltaban datos de las cartas. Conservamos tu consulta y volvimos al último paso seguro."};
+      return readingSession;
+    }
   } catch (error) {
     console.warn("[Arcana] No fue posible recuperar la sesión local.", error);
+    readingSession={...createReadingSession(spread),recoveryNotice:"La sesión anterior estaba dañada. Empezamos una nueva sin exponer datos técnicos."};return readingSession;
   }
   readingSession = createReadingSession(spread);
   return readingSession;

@@ -41,3 +41,13 @@ Luego abre `http://localhost:8000`. También puede publicarse directamente con G
 El nombre provisional vive en `js/config.js`. El catálogo permite buscar, filtrar y revisar el detalle de cada tirada antes de acceder a su preparación provisional.
 
 La experiencia incluye preparación, barajado, selección, revelación e interpretación local responsable. Todavía no incluye imágenes definitivas ni servicios externos de IA.
+
+## Calidad, privacidad y PWA
+
+- `js/services/sensitive-topic-service.js`: detector local, no diagnóstico, para mostrar orientación responsable ante temas sensibles.
+- `privacidad.html`: explica el almacenamiento local, el borrado de datos y las precauciones al compartir.
+- `manifest.webmanifest` y `service-worker.js`: instalación como PWA y caché esencial con actualización en segundo plano.
+- `offline.html`: respuesta sencilla cuando una ruta todavía no está disponible sin conexión.
+- `robots.txt` y `sitemap.xml`: configuración básica de indexación para GitHub Pages.
+
+Para probar la PWA y el modo offline, sirve el proyecto por HTTP, espera a que el Service Worker quede activo y recarga con la red desactivada. Usa `?no-sw` para omitirlo temporalmente y `?debug` para ejecutar las validaciones completas del mazo en consola.

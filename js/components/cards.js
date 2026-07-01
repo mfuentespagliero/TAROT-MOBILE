@@ -32,11 +32,11 @@ export function initCardDetails(){
   const move=direction=>{currentIndex=(currentIndex+direction+cards.length)%cards.length;orientation="upright";paint();};
   document.addEventListener("click",event=>{
     const openButton=event.target.closest("[data-open-card]");if(openButton){if(!dialog.open)trigger=openButton;open(openButton.dataset.openCard);return;}
-    if(event.target.closest("[data-close-card]")){dialog.close();return;}if(event.target.closest("[data-card-prev]")){move(-1);return;}if(event.target.closest("[data-card-next]")){move(1);return;}
+    if(event.target.closest("[data-close-card]")){dialog.close();window.setTimeout(()=>trigger?.focus(),0);return;}if(event.target.closest("[data-card-prev]")){move(-1);return;}if(event.target.closest("[data-card-next]")){move(1);return;}
     const orientationButton=event.target.closest("[data-orientation]");if(orientationButton){orientation=orientationButton.dataset.orientation;paint();return;}
     const studyButton=event.target.closest("[data-study-card]");if(studyButton){toggleStudy(cards[currentIndex].id,studyButton.dataset.studyCard);paint();}
   });
-  document.addEventListener("arcana:open-card",event=>open(event.detail.cardId));dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();});dialog.addEventListener("close",()=>trigger?.focus());dialog.addEventListener("keydown",event=>{if(event.key==="ArrowLeft")move(-1);if(event.key==="ArrowRight")move(1);});
+  document.addEventListener("arcana:open-card",event=>open(event.detail.cardId));dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();});dialog.addEventListener("close",()=>window.setTimeout(()=>trigger?.focus(),0));dialog.addEventListener("keydown",event=>{if(!["ArrowLeft","ArrowRight"].includes(event.key))return;if(event.target.matches('[role="tab"]')){event.preventDefault();orientation=event.key==="ArrowLeft"?"upright":"reversed";paint();content.querySelector(`[data-orientation="${orientation}"]`)?.focus();return;}move(event.key==="ArrowLeft"?-1:1);});
 }
 
 function toggleStudy(id,type){const progress=getLearningProgress(),key=type==="studied"?"studied":"difficult",active=progress[key].includes(id),value=active?progress[key].filter(item=>item!==id):[...progress[key],id];saveLearningProgress({[key]:value});document.dispatchEvent(new CustomEvent("arcana:study-updated"));showToast(active?(key==="studied"?"Carta marcada como pendiente":"Carta quitada de difíciles"):(key==="studied"?"Carta marcada como estudiada":"Carta marcada como difícil"));}

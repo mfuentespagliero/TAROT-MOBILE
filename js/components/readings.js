@@ -86,10 +86,10 @@ export function initSpreadDetails() {
       content.innerHTML = detailTemplate(spread);
       dialog.showModal();
       content.querySelector("[data-close-dialog]")?.focus();
-    } else if (event.target.closest("[data-close-dialog]")) dialog.close();
+    } else if (event.target.closest("[data-close-dialog]")) { dialog.close(); window.setTimeout(()=>trigger?.focus(),0); }
   });
   dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
-  dialog.addEventListener("close", () => trigger?.focus());
+  dialog.addEventListener("close", () => window.setTimeout(()=>trigger?.focus(),0));
 }
 
 function detailTemplate(spread) {

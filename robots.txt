@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://mfuentespagliero.github.io/TAROT-MOBILE/sitemap.xml

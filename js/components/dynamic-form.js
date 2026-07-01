@@ -1,12 +1,13 @@
 import { fieldDefinitions, selectionMethods } from "../data/fields.js";
 import { resolveReadingSettings } from "../data/reading-strategies.js";
+import { detectSensitiveTopics } from "../services/sensitive-topic-service.js";
 
 export function renderDynamicForm(spread, session) {
   const fieldIds = [...new Set([...spread.requiredFields, ...spread.optionalFields])];
   const fields = fieldIds.map(id => renderField(fieldDefinitions[id], spread, session, spread.requiredFields.includes(id))).join("");
   return `<form class="consultation-form" data-consultation-form novalidate>
     <div class="form-error-summary" data-error-summary role="alert" tabindex="-1" hidden><h3>Revisa estos campos</h3><ul></ul></div>
-    <div class="dynamic-fields">${fields}</div>
+    <div class="dynamic-fields">${fields}</div><aside class="sensitive-notice" data-sensitive-notice aria-live="polite" aria-atomic="true" hidden><span aria-hidden="true">◇</span><div><h3></h3><p data-sensitive-message></p><small data-sensitive-detail></small></div></aside>
     <aside class="privacy-note"><span aria-hidden="true">◇</span><p><strong>Tu consulta permanece contigo.</strong> Durante el MVP los datos se procesan localmente, no se envían a servidores y la lectura solo se guardará si tú lo solicitas.</p></aside>
     <div class="flow-actions"><button class="button button--ghost" type="button" data-flow-back>← Volver</button><button class="button button--primary" type="submit">Revisar mi consulta →</button></div>
   </form>`;
@@ -16,9 +17,10 @@ export function bindDynamicForm(form, spread, session, onValid, onBack, onDraft)
   form.addEventListener("click", event => { if (event.target.closest("[data-flow-back]")) onBack(readFormValues(form, spread, session)); });
   const amount = form.elements.cardAmount;
   amount?.addEventListener("input", () => updatePositionInputs(form, spread, session, Number(amount.value)));
-  const saveDraft = () => onDraft?.(readFormValues(form, spread, session));
+  const saveDraft = () => { updateSensitiveNotice(form); onDraft?.(readFormValues(form, spread, session)); };
   form.addEventListener("input", saveDraft);
   form.addEventListener("change", saveDraft);
+  updateSensitiveNotice(form);
   form.addEventListener("submit", event => {
     event.preventDefault();
     clearErrors(form);
@@ -29,20 +31,24 @@ export function bindDynamicForm(form, spread, session, onValid, onBack, onDraft)
   });
 }
 
+function updateSensitiveNotice(form){const notice=form.querySelector("[data-sensitive-notice]");if(!notice)return;const detection=detectSensitiveTopics([...new FormData(form).values()].join(" "));notice.hidden=!detection.detected;if(!detection.detected)return;notice.classList.toggle("is-urgent",detection.urgent);notice.setAttribute("aria-live",detection.urgent?"assertive":"polite");notice.querySelector("h3").textContent=detection.notice.title;notice.querySelector("[data-sensitive-message]").textContent=detection.notice.message;notice.querySelector("[data-sensitive-detail]").textContent=detection.notice.detail;}
+
 function renderField(field, spread, session, required) {
   if (!field) return "";
   const value = getSessionValue(session, field.id);
   const requiredText = required ? `<span aria-hidden="true">*</span><span class="sr-only"> obligatorio</span>` : `<span class="field__optional">Opcional</span>`;
   const describedBy = `error-${field.id}`;
+  const labelId=`label-${field.id}`;
   let control = "";
   if (field.type === "textarea") control = `<textarea id="${field.id}" name="${field.id}" rows="4" maxlength="${field.maxLength}" placeholder="${field.placeholder ?? ""}" aria-describedby="${describedBy}">${escapeHtml(value)}</textarea>`;
   if (field.type === "text") control = `<input id="${field.id}" name="${field.id}" type="text" value="${escapeHtml(value)}" maxlength="${field.maxLength}" placeholder="${field.placeholder ?? ""}" aria-describedby="${describedBy}">`;
   if (field.type === "number") control = `<input id="${field.id}" name="${field.id}" type="number" value="${value || spread.cardCount}" min="1" max="10" inputmode="numeric" aria-describedby="${describedBy}">`;
   if (field.type === "select") control = `<select id="${field.id}" name="${field.id}" aria-describedby="${describedBy}"><option value="">Selecciona una opción</option>${field.options.map(option => `<option value="${option}" ${value === option ? "selected" : ""}>${option}</option>`).join("")}</select>`;
   if (field.type === "switch") control = `<label class="switch-control"><input id="${field.id}" name="${field.id}" type="checkbox" ${value ? "checked" : ""} ${spread.allowsReversed ? "" : "disabled"}><span aria-hidden="true"></span><b>${spread.allowsReversed ? "Activar cartas invertidas" : "Esta tirada no usa invertidas"}</b></label>`;
-  if (field.type === "radio") control = `<div class="choice-grid" id="${field.id}" role="radiogroup" aria-describedby="${describedBy}">${selectionMethods.filter(method => spread.selectionMethods.includes(method.id)).map(method => `<label class="choice-card"><input type="radio" name="${field.id}" value="${method.id}" ${value === method.id ? "checked" : ""}><span><strong>${method.name}</strong><small>${method.description}</small></span></label>`).join("")}</div>`;
-  if (field.type === "list") control = `<div class="position-inputs" id="${field.id}" data-position-inputs>${renderPositionInputs(spread, session, Number(session.cardAmount || spread.cardCount))}</div>`;
-  return `<div class="field field--${field.type}" data-field="${field.id}"><label for="${field.id}">${field.label} ${requiredText}</label>${control}<p class="field-error" id="${describedBy}" data-field-error="${field.id}"></p></div>`;
+  if (field.type === "radio") control = `<div class="choice-grid" id="${field.id}" role="radiogroup" aria-labelledby="${labelId}" aria-describedby="${describedBy}">${selectionMethods.filter(method => spread.selectionMethods.includes(method.id)).map(method => `<label class="choice-card"><input type="radio" name="${field.id}" value="${method.id}" ${value === method.id ? "checked" : ""}><span><strong>${method.name}</strong><small>${method.description}</small></span></label>`).join("")}</div>`;
+  if (field.type === "list") control = `<div class="position-inputs" id="${field.id}" role="group" aria-labelledby="${labelId}" data-position-inputs>${renderPositionInputs(spread, session, Number(session.cardAmount || spread.cardCount))}</div>`;
+  const label=["radio","list"].includes(field.type)?`<p class="field-label" id="${labelId}">${field.label} ${requiredText}</p>`:`<label id="${labelId}" for="${field.id}">${field.label} ${requiredText}</label>`;
+  return `<div class="field field--${field.type}" data-field="${field.id}">${label}${control}<p class="field-error" id="${describedBy}" data-field-error="${field.id}"></p></div>`;
 }
 
 function renderPositionInputs(spread, session, amount) {

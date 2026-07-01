@@ -6,11 +6,12 @@ import { getCardById } from "../data/cards.js";
 import { renderDynamicForm, bindDynamicForm } from "../components/dynamic-form.js";
 import { loadReadingSession, saveReadingSession } from "../services/reading-session.js";
 import { associateCardsWithPositions, getCleanDeck, registerManualSelection, resetSelection, selectCardsAutomatically, shuffleDeck, undoManualSelection } from "../services/tarot-engine.js";
-import { generateInterpretation } from "../services/interpretation-engine.js";
+import { generatePersonalizedReading } from "../services/ai-service.js";
 import { getPreferences, openReading, savePreferences, saveReading, setFavorite } from "../services/storage-service.js";
 import { copyReading, downloadReading, shareReading } from "../services/share-service.js";
 import { showToast } from "../components/toast.js";
 import { getReadingId } from "../router.js";
+import { detectSensitiveTopics,sensitiveTextFromSession } from "../services/sensitive-topic-service.js";
 
 const flowSteps = [
   {number:1,id:"detail",label:"Detalle"},{number:2,id:"deck",label:"Baraja"},{number:3,id:"form",label:"Consulta"},{number:4,id:"summary",label:"Resumen"},{number:5,id:"shuffling",label:"Barajado"}
@@ -25,24 +26,30 @@ const dailyFallback = {
 export function renderReadingPage() {
   const target = document.querySelector("[data-reading-page]");
   if (!target) return;
-  const spread = getSpreadById(getReadingId()) ?? dailyFallback;
+  const requestedId=getReadingId();
+  const spread = getSpreadById(requestedId) ?? (requestedId==="carta-del-dia"?dailyFallback:null);
+  if(!spread){document.title=`Lectura no encontrada · ${APP_CONFIG.name}`;target.innerHTML=friendlyErrorTemplate("No encontramos esa lectura","El enlace puede estar incompleto o pertenecer a una versión anterior de Arcana.","index.html#lecturas","Volver al catálogo");return;}
   let session = loadReadingSession(spread);
+  if(session.recoveryNotice){const message=session.recoveryNotice;session=persist({...session,recoveryNotice:""});queueMicrotask(()=>showToast(message,"error"));}
   if (new URLSearchParams(location.search).get("ampliar") === "carta-dia" && !session.question) session = persist({...session,question:"¿Qué aspecto del mensaje de mi Carta del Día puedo comprender mejor?"});
   let activeDeck = shuffleDeck(getCleanDeck());
+  if(session.deckId&&!getDeckById(session.deckId)){session=persist({...session,deckId:"",selectedCards:[],revealedCount:0,status:"deck"});queueMicrotask(()=>showToast("La baraja guardada ya no está disponible. Elige otra para continuar.","error"));}
+  if(["reveal","result"].includes(session.status)&&session.selectedCards.some(selected=>!getCardById(selected.cardId))){session=persist({...session,selectedCards:[],revealedCount:0,status:session.deckId?"summary":"deck"});queueMicrotask(()=>showToast("Faltaban datos de una carta. Conservamos tu consulta y volvimos a un paso seguro.","error"));}
   if (!session.deckId && session.status !== "deck") session = persist({...session,status:"deck"});
   document.title = `${spread.name} · ${APP_CONFIG.name}`;
 
   const render = () => {
-    target.innerHTML = `<div class="reading-flow">${progressTemplate(session.status)}<div class="flow-stage" data-flow-stage>${stageTemplate(spread,session,activeDeck)}</div></div>`;
+    target.innerHTML = `<div class="reading-flow">${progressTemplate(session.status)}<div class="flow-stage" data-flow-stage tabindex="-1">${stageTemplate(spread,session,activeDeck)}</div></div>`;
     bindStage();
   };
-  const goTo = status => { session = persist({...session,status}); render(); window.scrollTo({top:0,behavior:"smooth"}); };
+  const focusAfterRender=selector=>requestAnimationFrame(()=>target.querySelector(selector)?.focus());
+  const goTo = status => { session = persist({...session,status}); render(); window.scrollTo({top:0,behavior:reducedMotion()?"auto":"smooth"});focusAfterRender("[data-flow-stage]"); };
   const bindStage = () => {
     const stage = target.querySelector("[data-flow-stage]");
     if (session.status === "deck") {
       stage.addEventListener("click",event => {
         const deckButton = event.target.closest("[data-select-deck]");
-        if (deckButton) { session = persist({...session,deckId:deckButton.dataset.selectDeck}); render(); return; }
+        if (deckButton) { session = persist({...session,deckId:deckButton.dataset.selectDeck}); render();focusAfterRender(`[data-select-deck="${deckButton.dataset.selectDeck}"]`); return; }
         if (event.target.closest("[data-next-step]") && session.deckId) goTo("form");
       });
     }
@@ -91,9 +98,9 @@ export function renderReadingPage() {
       if (cardButton) {
         const card = getCardById(cardButton.dataset.manualCard);
         const selected = registerManualSelection(session.selectedCards,card,{maxCards:session.cardAmount,allowReversed:session.useReversed,reversedProbability:session.reversedProbability});
-        if (selected.length !== session.selectedCards.length) { navigator.vibrate?.(15); session = persist({...session,selectedCards:selected}); render(); }
+        if (selected.length !== session.selectedCards.length) { navigator.vibrate?.(15); session = persist({...session,selectedCards:selected}); render();focusAfterRender(`[data-manual-card="${card.id}"]`); }
       }
-      if (event.target.closest("[data-undo-card]") && session.selectedCards.length) { session = persist({...session,selectedCards:undoManualSelection(session.selectedCards)}); render(); }
+      if (event.target.closest("[data-undo-card]") && session.selectedCards.length) { session = persist({...session,selectedCards:undoManualSelection(session.selectedCards)}); render();focusAfterRender("[data-undo-card]"); }
       if (event.target.closest("[data-confirm-cards]") && session.selectedCards.length === session.cardAmount) { session = persist({...session,selectedCards:associateCardsWithPositions(session.selectedCards,session.positions),revealedCount:0,status:"reveal"}); render(); }
       if (event.target.closest("[data-restart-shuffle]")) { session = persist({...session,selectedCards:resetSelection(),hasShuffled:false,status:"shuffling"}); render(); }
     });
@@ -101,7 +108,7 @@ export function renderReadingPage() {
 
   const bindRevealStage = stage => {
     stage.addEventListener("click",event => {
-      if (event.target.closest("[data-reveal-next]") && session.revealedCount < session.selectedCards.length) { session = persist({...session,revealedCount:session.revealedCount + 1}); navigator.vibrate?.(18); render(); }
+      if (event.target.closest("[data-reveal-next]") && session.revealedCount < session.selectedCards.length) { session = persist({...session,revealedCount:session.revealedCount + 1}); navigator.vibrate?.(18); render();focusAfterRender(session.revealedCount===session.selectedCards.length?"[data-continue-result]":"[data-reveal-next]"); }
       if (event.target.closest("[data-continue-result]") && session.revealedCount === session.selectedCards.length) goTo("result");
     });
   };
@@ -109,10 +116,10 @@ export function renderReadingPage() {
     stage.addEventListener("click",async event => {
       if (event.target.closest("[data-back-reveal]")) { goTo("reveal"); return; }
       const record=buildReadingRecord(spread,session);
-      if (event.target.closest("[data-save-reading]")) { const result=saveReading(record); showToast(result.ok?"Lectura guardada en este dispositivo":storageErrorMessage(result.error),result.ok?"success":"error"); render(); return; }
+      if (event.target.closest("[data-save-reading]")) { const result=saveReading(record); showToast(result.ok?"Lectura guardada en este dispositivo":storageErrorMessage(result.error),result.ok?"success":"error"); render();focusAfterRender("[data-save-reading]"); return; }
       if (event.target.closest("[data-favorite-reading]")) {
         let saved=openReading(session.id); if(!saved){const result=saveReading(record);if(!result.ok){showToast(storageErrorMessage(result.error),"error");return;}saved=result.reading;}
-        const result=setFavorite(session.id,!saved.favorite); showToast(result.ok?(result.reading.favorite?"Lectura marcada como favorita":"Lectura quitada de favoritas"):"No se pudo actualizar la lectura",result.ok?"success":"error"); render(); return;
+        const result=setFavorite(session.id,!saved.favorite); showToast(result.ok?(result.reading.favorite?"Lectura marcada como favorita":"Lectura quitada de favoritas"):"No se pudo actualizar la lectura",result.ok?"success":"error"); render();focusAfterRender("[data-favorite-reading]"); return;
       }
       const shareTrigger=event.target.closest("[data-open-share]");
       if(shareTrigger){const dialog=stage.querySelector("[data-share-dialog]");dialog.dataset.shareAction=shareTrigger.dataset.openShare;dialog.showModal();return;}
@@ -181,6 +188,7 @@ function summaryStage(spread,session) {
   if (session.predictionPeriod) rows.push(["Periodo",session.predictionPeriod]);
   if (session.moonPhase) rows.push(["Fase lunar",session.moonPhase]);
   return `${stageHeader("Paso 4 · Revisa antes de comenzar","Tu consulta está preparada","Comprueba que la intención y las opciones representan lo que deseas explorar.")}
+    ${sensitiveNoticeTemplate(session)}
     <article class="session-summary"><div class="summary-symbol" aria-hidden="true">${spread.icon}</div><dl>${rows.map(([label,value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl>
       <div class="summary-positions"><h2>Posiciones</h2><ol>${session.positions.map((position,index) => `<li><span>${index + 1}</span>${escapeHtml(position)}</li>`).join("")}</ol></div>
     </article><aside class="privacy-note privacy-note--summary"><span aria-hidden="true">◇</span><p>Esta sesión permanece en este navegador y todavía no se incorpora al historial.</p></aside>
@@ -229,11 +237,12 @@ function revealCardTemplate(selected,revealed,index) {
 
 function resultStage(spread,session) {
   const deck = getDeckById(session.deckId);
-  const interpretation = generateInterpretation({sessionId:session.id,question:session.question,querentName:session.querentName,otherPersonName:session.otherPersonName,relationship:session.relationship,context:session.context,topic:session.topic,spread,deck,positions:session.positions,cards:session.selectedCards,predictionPeriod:session.predictionPeriod,moonPhase:session.moonPhase,twoCardLayout:session.twoCardLayout,yesNoCardCount:session.yesNoCardCount,options:session.options});
+  const interpretation = generatePersonalizedReading({sessionId:session.id,question:session.question,querentName:session.querentName,otherPersonName:session.otherPersonName,relationship:session.relationship,context:session.context,topic:session.topic,spread,deck,positions:session.positions,cards:session.selectedCards,predictionPeriod:session.predictionPeriod,moonPhase:session.moonPhase,twoCardLayout:session.twoCardLayout,yesNoCardCount:session.yesNoCardCount,options:session.options});
   const date = new Intl.DateTimeFormat("es",{dateStyle:"long",timeStyle:"short"}).format(new Date(session.createdAt));
   const saved=openReading(session.id); const preferences=getPreferences().sharePrivacy??{};
   return `<section class="reading-result result-layout-${interpretation.strategy.layout}" aria-labelledby="result-title">
     <header class="result-hero"><p class="eyebrow">Lectura completa</p><h1 id="result-title">${escapeHtml(spread.name)}</h1><p>${escapeHtml(interpretation.introduction)}</p><dl><div><dt>Pregunta</dt><dd>${escapeHtml(session.question || "Consulta abierta")}</dd></div><div><dt>Baraja</dt><dd>${escapeHtml(deck.name)}</dd></div><div><dt>Fecha</dt><dd>${escapeHtml(date)}</dd></div></dl></header>
+    ${sensitiveNoticeTemplate(session)}
     ${interpretation.yesNo ? yesNoResultTemplate(interpretation.yesNo) : ""}
     ${specializedResultTemplate(interpretation.specialized)}
     <section class="result-cards" aria-labelledby="cards-result-title"><h2 id="cards-result-title">Cartas y posiciones</h2>${interpretation.positionInterpretations.map((position,index) => positionResultTemplate(position,session.selectedCards[index])).join("")}</section>
@@ -270,9 +279,12 @@ function specializedResultTemplate(specialized) {
   return `<section class="strategy-result" aria-labelledby="strategy-title">${phase}<p class="eyebrow">Estrategia de lectura</p><h2 id="strategy-title">${escapeHtml(specialized.title)}</h2>${specialized.variant ? `<p class="strategy-variant">Configuración: ${escapeHtml(specialized.variant)}</p>` : ""}${timeline}${paths}${questions}${groups}${oracle}${sections}</section>`;
 }
 
+function sensitiveNoticeTemplate(session){const detection=detectSensitiveTopics(sensitiveTextFromSession(session));if(!detection.detected)return"";return `<aside class="sensitive-notice ${detection.urgent?"is-urgent":""}" role="${detection.urgent?"alert":"note"}" aria-label="Aviso sobre tema sensible"><span aria-hidden="true">◇</span><div><h2>${escapeHtml(detection.notice.title)}</h2><p>${escapeHtml(detection.notice.message)}</p><small>${escapeHtml(detection.notice.detail)}</small></div></aside>`;}
+function friendlyErrorTemplate(title,message,href,label){return `<section class="friendly-error" role="status"><span aria-hidden="true">☾</span><p class="eyebrow">Arcana sigue aquí</p><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p><a class="button button--primary" href="${href}">${escapeHtml(label)}</a></section>`;}
+
 function buildReadingRecord(spread,session) {
   const deck=getDeckById(session.deckId);
-  const interpretation=generateInterpretation({sessionId:session.id,question:session.question,querentName:session.querentName,otherPersonName:session.otherPersonName,relationship:session.relationship,context:session.context,topic:session.topic,spread,deck,positions:session.positions,cards:session.selectedCards,predictionPeriod:session.predictionPeriod,moonPhase:session.moonPhase,twoCardLayout:session.twoCardLayout,yesNoCardCount:session.yesNoCardCount,options:session.options});
+  const interpretation=generatePersonalizedReading({sessionId:session.id,question:session.question,querentName:session.querentName,otherPersonName:session.otherPersonName,relationship:session.relationship,context:session.context,topic:session.topic,spread,deck,positions:session.positions,cards:session.selectedCards,predictionPeriod:session.predictionPeriod,moonPhase:session.moonPhase,twoCardLayout:session.twoCardLayout,yesNoCardCount:session.yesNoCardCount,options:session.options});
   return {id:session.id,date:session.createdAt,type:{id:spread.id,name:spread.name},category:spread.category,question:session.question||"Consulta abierta",deck:{id:deck.id,name:deck.name},optionalData:{querentName:session.querentName,otherPersonName:session.otherPersonName,relationship:session.relationship,context:session.context,topic:session.topic,options:session.options,predictionPeriod:session.predictionPeriod,moonPhase:session.moonPhase,twoCardLayout:session.twoCardLayout,yesNoCardCount:session.yesNoCardCount},positions:[...session.positions],cards:session.selectedCards.map(selected=>{const card=getCardById(selected.cardId);return {id:card.id,name:card.name,symbol:card.symbol,position:{...selected.position},isReversed:Boolean(selected.isReversed),orientation:selected.isReversed?"reversed":"upright"};}),interpretation,favorite:openReading(session.id)?.favorite??false};
 }
 
